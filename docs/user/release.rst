@@ -6,6 +6,12 @@
 以下是手工发布流程；仓库没有 ``make install``、``make release`` 或自动上传发布系统。
 示例版本 ``v0.1.0`` 仅供替换，不代表已有正式发布。
 
+.. note::
+
+   ``v1.0`` 已发布带文档的 Docker 离线包，包含合并 Web、独立 UI 和 Gateway 三个镜像。
+   维护者打包、发布 Git tag / Release 和补传附件见 :doc:`/developer/release`。
+   本页侧重其他交付方式与部署升级，下面的 ``v0.1.0`` 为示例占位符。
+
 .. contents:: 发布流程
    :local:
    :depth: 2

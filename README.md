@@ -9,6 +9,7 @@
 当前 Compose 将 etcd 集成在 Controller 容器，将 Redis/FRR 集成在每个 Agent 容器；数据库不是独立容器。Controller 与 Agent 从宿主机只读挂载各自 `.conf` 文件启动，Web 容器运行 Nginx/Gateway 两个进程，见 [Docker 部署](docs/user/docker-deploy.rst)。
 
 从这里开始：[源码编译、安装与部署](docs/user/source-install.rst) · [Docker 源码镜像部署](docs/user/docker-deploy.rst) · [发布、升级与回滚](docs/user/release.rst)。包含依赖安装、构建产物、安装目录、启动/停止、版本打包和成功检查。
+维护者制作含三个 Web 镜像和文档的 `.tar.xz`、推送 Git tag、发布 GitHub Release 和补传附件，见[开发发布流程](docs/developer/release.rst)。
 
 完整文档：[用户手册源码](docs/user/index.rst) · [开发手册源码](docs/developer/index.rst) · [文档构建说明](docs/README.md)。`make -C docs help` 无需 Sphinx 即可查看帮助；`make -C docs html` 生成 `docs/html/index.html`，`make -C docs clean` 只清理文档。应用构建使用下面的 `make build`，当前没有 `make install` 或 `make release`。
 

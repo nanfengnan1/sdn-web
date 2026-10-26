@@ -9,6 +9,7 @@ sdn-web 独立构建与部署。业务规则、资源编译、任务持久化和
 
 首次搭建请先读 :doc:`源码编译、安装与部署 </user/source-install>`，镜像方式见 :doc:`/user/docker-deploy`。
 需要修改代码并启动 Vite / Gateway 开发进程时，直接进入 :doc:`development`。
+制作包含合并、UI 和 Gateway 镜像的离线包，以及发布 tag / GitHub Release，见 :doc:`release`。
 
 .. toctree::
    :maxdepth: 2
@@ -18,6 +19,7 @@ sdn-web 独立构建与部署。业务规则、资源编译、任务持久化和
    development
    extensions
    testing
+   release
    build-docs
 
 建议按 :doc:`architecture` → :doc:`http-api` → :doc:`development` → :doc:`extensions`
