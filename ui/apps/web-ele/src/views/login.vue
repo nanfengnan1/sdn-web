@@ -1,0 +1,7 @@
+<script setup lang="ts">
+import { ref } from 'vue'; import { useRoute, useRouter } from 'vue-router';
+import { request, errorText } from '../api'; import { setSession } from '../session';
+const secret=ref('');const busy=ref(false);const error=ref('');const router=useRouter();const route=useRoute();
+async function login(){busy.value=true;error.value='';try{const value=secret.value.trim();const result=await request<{role:'admin'|'viewer'}>('/me',{bearer:value});setSession(value,result.role);secret.value='';const dest=String(route.query.redirect||'/nodes');await router.push(dest.startsWith('/')&&!dest.startsWith('//')?dest:'/nodes');}catch(e){error.value=errorText(e);}finally{busy.value=false;}}
+</script>
+<template><main class="login-screen"><section class="login-art"><img src="/sdn.svg" width="64" alt="SDN"><p>NETWORK CONTROL PLANE</p><h1>让网络配置<br>清晰、可追踪。</h1><p>管理 Leaf 与 Spine，规划租户网络，跟踪每一次变更。配置目标、执行进度和实际观测在同一处查看。</p></section><form class="login-form" @submit.prevent="login"><h2>连接 SDN Fabric</h2><p class="subtitle">输入管理员或只读访问令牌。令牌仅保存在当前页面内存中。</p><el-alert v-if="error" type="error" :title="error" :closable="false"/><el-input v-model="secret" type="password" show-password placeholder="访问令牌" aria-label="访问令牌" size="large" autocomplete="off"/><el-button type="primary" size="large" native-type="submit" :loading="busy" :disabled="!secret.trim()">连接控制台</el-button><p class="subtitle" style="margin-top:20px">SDN Controller · Vue Vben Admin</p></form></main></template>

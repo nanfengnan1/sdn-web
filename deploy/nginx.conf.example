@@ -1,0 +1,23 @@
+# Example only: set your own certificate paths and hosts.
+server {
+    listen 443 ssl;
+    server_name sdn.example.net;
+    ssl_certificate /etc/ssl/sdn/fullchain.pem;
+    ssl_certificate_key /etc/ssl/sdn/privkey.pem;
+    root /srv/sdn-web;
+    index index.html;
+
+    location /api/ {
+        proxy_pass http://127.0.0.1:18080;
+        # Keep upstream Host aligned with the internal connection. Explicitly allow
+        # https://sdn.example.net in Gateway -allowed-origins.
+        proxy_set_header Host $proxy_host;
+        proxy_set_header Authorization $http_authorization;
+        proxy_http_version 1.1;
+        proxy_buffering off;
+        proxy_cache off;
+        proxy_read_timeout 90s;
+    }
+    location = /config.js { add_header Cache-Control "no-store"; }
+    location / { try_files $uri $uri/ /index.html; }
+}

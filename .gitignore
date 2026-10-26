@@ -1,0 +1,14 @@
+bin/
+artifacts/
+.runtime/
+ui/node_modules/
+ui/**/node_modules/
+ui/**/dist/
+ui/**/.turbo/
+*.log
+
+# Generated documentation
+/.venv-docs/
+/docs/html/
+/docs/_build/
+/docs/**/__pycache__/
