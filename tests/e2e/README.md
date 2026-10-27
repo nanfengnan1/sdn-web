@@ -66,3 +66,6 @@ node tests/e2e/browser.cjs
 它使用相同的 `PLAYWRIGHT_MODULE` / `CHROME_BIN`，无需部署环境凭据，
 报告为 `resource-component-results.json`。
 
+组件浏览器回归还检查独立接口条目、路由下的 BGP/OSPF 分类、隧道下仅开放 VXLAN、
+静态路由入口不展示，以及表单和查询范围、跨分类共享候选、VXLAN 请求字段和切换后的查询状态清理。
+

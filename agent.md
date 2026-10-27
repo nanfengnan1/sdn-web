@@ -381,7 +381,9 @@ UI 7 个协议/恢复辅助测试、vue-tsc、生产构建通过。实际 Chromi
   ├─ 节点选择与能力检查（viewer 仅查看）
   ├─ 配置目标 / 候选资源
   │    ├─ VRF → BD → 成员与三层地址关系树
-  │    ├─ BD / 接口 / VXLAN / BGP / OSPF 表单
+  │    ├─ 租户与网络 / 二层网络 BD / 接口
+  │    ├─ 隧道 → VXLAN
+  │    ├─ 路由 → BGP（含 EVPN）/ OSPF
   │    └─ 共享候选：创建 → 多次局部编辑 → 预览 → 提交
   └─ 实际运行状态查询：来源 / 时间 / revision / stale / error
              │ HTTP + Protobuf JSON
@@ -416,6 +418,14 @@ Web 与 CLI 共享同一候选模型，不直接向 Agent 写入。旧声明式�
 ARP/ND 抑制持久保存为 BD 策略，由 Controller 投影到当前及未来的 VXLAN 成员。
 它不是主动探测或 MAC 保活。FDB/邻居/接口/路由/BGP/EVPN/OSPF 查询与配置目标分开展示；
 未知对象、适配器失败和不支持的筛选保留错误，不伪造空表。
+
+2026-10-27：配置工作台按职责拆分。接口条目只管理 `INTERFACE` / `ADDRESS`，
+地址不再在 BD 表单重复编辑；路由条目统一容纳 BGP 与 OSPF 子条目，EVPN 配置和查询归入 BGP，
+工作台不开放静态路由入口，也不在接口分类混入 ROUTES/FIB 查询。
+新增独立的隧道条目，目前只开放 VXLAN，负责隧道创建/删除和状态查询；
+BD 成员关系统一归二层网络 BD。`resources.ts` 的分类定义控制表单、资源列表及查询范围，
+未知资源不再默认落入接口分类。切换分类保留已保存的共享候选，重置未保存表单及查询状态；
+仍由 Controller 统一生成计划并处理资源依赖。
 
 新增实现：`views/resource-workspace.vue`、`views/resource-query.vue`、`resources.ts`，
 Gateway 资源契约测试 `resources_test.go` 与 UI 资源单测 `resources.test.ts`。

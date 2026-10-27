@@ -1,6 +1,7 @@
 import type { Node, Operation } from './types';
 
 export type ResourceSection = 'tenant' | 'bridge' | 'interface' | 'vxlan' | 'bgp' | 'ospf';
+export type ResourceCategory = 'tenant' | 'bridge' | 'interface' | 'tunnel' | 'routing';
 export type FieldValue = string | number | boolean | undefined;
 export interface ResourceField {
   key: string; label: string; type?: 'number' | 'boolean' | 'list' | 'select';
@@ -11,11 +12,21 @@ export interface ResourceAction {
   id: string; title: string; section: ResourceSection; code: string; action: string; data: string;
   fields: ResourceField[]; description?: string; identity?: string[];
 }
-export const sections: { id: ResourceSection; label: string }[] = [
+export const resourceCategories: { id: ResourceCategory; label: string }[] = [
   { id: 'tenant', label: '租户与网络' }, { id: 'bridge', label: '二层网络 BD' },
-  { id: 'interface', label: '三层接口与路由' }, { id: 'vxlan', label: 'VXLAN 隧道' },
-  { id: 'bgp', label: 'BGP / EVPN' }, { id: 'ospf', label: 'OSPF' },
+  { id: 'interface', label: '接口' }, { id: 'tunnel', label: '隧道' },
+  { id: 'routing', label: '路由' },
 ];
+export const sections: { id: ResourceSection; category: ResourceCategory; label: string; description: string }[] = [
+  { id: 'tenant', category: 'tenant', label: '租户与网络', description: '管理 VRF、L3VNI 与 BD 的租户归属，查看租户网络关系。' },
+  { id: 'bridge', category: 'bridge', label: '二层网络 BD', description: '管理 BD 属性、成员接口与 ARP / ND 抑制；VXLAN 加入或移出 BD 在此配置。接口地址请到“接口”配置。' },
+  { id: 'interface', category: 'interface', label: '接口', description: '管理接口状态、MTU、MAC 和 IPv4 / IPv6 地址，包括 BD 的三层地址。路由与协议请到“路由”配置。' },
+  { id: 'vxlan', category: 'tunnel', label: 'VXLAN', description: '当前开放 VXLAN 隧道：创建或删除隧道，设置 VNI、VTEP 与 Underlay。成员归属请到“二层网络 BD”配置。' },
+  { id: 'bgp', category: 'routing', label: 'BGP', description: '管理 BGP 实例、邻居和地址族，包括 EVPN 发布与运行状态查询。' },
+  { id: 'ospf', category: 'routing', label: 'OSPF', description: '管理 OSPFv2 / OSPFv3 实例、协议接口及网段。接口地址请到“接口”配置。' },
+];
+export const routingSections = sections.filter(section => section.category === 'routing');
+export const tunnelSections = sections.filter(section => section.category === 'tunnel');
 const name = (label = '名称', reference?: ResourceField['reference']): ResourceField => ({ key: 'name', label, required: true, reference });
 const num = (key: string, label: string, min = 1, max = 4294967295, required = true): ResourceField => ({ key, label, type: 'number', required, min, max });
 const str = (key: string, label: string, required = true): ResourceField => ({ key, label, required });
@@ -49,8 +60,6 @@ const actions: ResourceAction[] = [
   { id: 'address-delete', title: '接口 / BD 删除地址', section: 'interface', code: 'ADDRESS', action: 'DELETE', data: 'address', fields: [ref('interface', '接口 / BD', 'interface'), str('prefix', 'IPv4 / IPv6 地址及前缀')] },
   { id: 'vxlan-create', title: '创建 VXLAN', section: 'vxlan', code: 'VXLAN', action: 'CREATE', data: 'vxlan', fields: [name('VXLAN 接口名'), num('vni', 'VNI', 1, 16777215), str('local', '本地 VTEP 地址'), { ...num('port', 'UDP 端口', 1, 65535), default: 4789 }, bool('learning', '隧道动态 MAC 学习'), { ...str('underlay', 'Underlay 接口', false), reference: 'interface' }] },
   { id: 'vxlan-delete', title: '删除 VXLAN', section: 'vxlan', code: 'VXLAN', action: 'DELETE', data: 'vxlan', fields: [name('VXLAN 接口名', 'vxlan')] },
-  { id: 'vxlan-bind', title: 'VXLAN 加入 BD', section: 'vxlan', code: 'BD_PORT', action: 'BIND', data: 'bridgePort', fields: [ref('bridge', 'BD', 'bridge'), ref('port', 'VXLAN 接口', 'vxlan'), bool('learning', 'MAC 学习'), bool('neighSuppress', 'ARP / ND 抑制')] },
-  { id: 'vxlan-unbind', title: 'VXLAN 移出 BD', section: 'vxlan', code: 'BD_PORT', action: 'UNBIND', data: 'bridgePort', fields: [ref('bridge', 'BD', 'bridge'), ref('port', 'VXLAN 接口', 'vxlan')] },
   { id: 'bgp-create', title: '创建 BGP 实例', section: 'bgp', code: 'BGP_INSTANCE', action: 'CREATE', data: 'bgp', fields: [...bgp, str('routerId', 'Router ID'), bool('defaultIpv4Unicast', '默认启用 IPv4 Unicast')] },
   { id: 'bgp-set', title: '修改 BGP 实例', section: 'bgp', code: 'BGP_INSTANCE', action: 'SET', data: 'bgp', fields: [...bgp, str('routerId', 'Router ID', false), bool('defaultIpv4Unicast', '默认启用 IPv4 Unicast')] },
   { id: 'bgp-delete', title: '删除 BGP 实例', section: 'bgp', code: 'BGP_INSTANCE', action: 'DELETE', data: 'bgp', fields: bgp },
@@ -135,13 +144,14 @@ export function objectName(operation: Operation): string {
   const data = operationData(operation);
   return String(data.name ?? data.bridge ?? data.tenant ?? data.interface ?? data.vrf ?? data.prefix ?? data.vni ?? data.asn ?? operation.id ?? operation.code);
 }
-export function resourceSection(operation: Operation): ResourceSection {
+export function resourceSection(operation: Operation): ResourceSection | undefined {
   if (['TENANT','TENANT_L3VNI','BD_TENANT'].includes(operation.code)) return 'tenant';
   if (['BD','BD_PORT','BD_SUPPRESSION'].includes(operation.code)) return 'bridge';
   if (operation.code === 'VXLAN') return 'vxlan';
   if (operation.code.startsWith('BGP') || operation.code.startsWith('EVPN')) return 'bgp';
   if (operation.code.startsWith('OSPF')) return 'ospf';
-  return 'interface';
+  if (['INTERFACE','ADDRESS'].includes(operation.code)) return 'interface';
+  return undefined;
 }
 export interface ResourceTree { id: string; label: string; kind: string; children?: ResourceTree[] }
 export function resourceTree(objects: Operation[]): ResourceTree[] {
@@ -174,7 +184,7 @@ export function resourceTree(objects: Operation[]): ResourceTree[] {
 export const queryKinds: {kind:string;label:string;section:ResourceSection}[] = [
   {kind:'TENANTS',label:'VRF / 路由表',section:'tenant'}, {kind:'BRIDGES',label:'BD',section:'bridge'},
   {kind:'PORTS',label:'BD 成员端口',section:'bridge'}, {kind:'FDB',label:'MAC / FDB',section:'bridge'}, {kind:'NEIGHBORS',label:'ARP / ND 邻居',section:'bridge'},
-  {kind:'INTERFACES',label:'接口属性与状态',section:'interface'}, {kind:'ADDRESSES',label:'IPv4 / IPv6 地址',section:'interface'}, {kind:'ROUTES',label:'路由 / FIB',section:'interface'},
+  {kind:'INTERFACES',label:'接口属性与状态',section:'interface'}, {kind:'ADDRESSES',label:'IPv4 / IPv6 地址',section:'interface'},
   {kind:'VXLAN_TUNNELS',label:'VXLAN 详情',section:'vxlan'},
   {kind:'BGP_SUMMARY',label:'BGP 概要',section:'bgp'}, {kind:'BGP_NEIGHBORS',label:'BGP 邻居',section:'bgp'}, {kind:'BGP_ROUTES',label:'BGP 路由',section:'bgp'},
   {kind:'EVPN_ROUTES',label:'EVPN 路由',section:'bgp'}, {kind:'EVPN_VNI',label:'EVPN VNI',section:'bgp'},
