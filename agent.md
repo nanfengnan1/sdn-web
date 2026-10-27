@@ -1,6 +1,8 @@
 # sdn-web 架构设计
 
-更新日期：2026-10-25。
+更新日期：2026-10-27。
+
+2026-10-27 已增加 VPP 运行查询展示：资源页识别 `dataplane/vpp-26.06` 能力，显示 VPP 标识；VXLAN 列表优先显示原生接口、本地 VTEP、地址族、远端和 BUM 数，展开查看 MAC→VTEP 映射；接口/FDB/路由使用适合 VPP 的列与状态格式。Gateway/Controller 公共查询协议不变，权限与取消沿用现有实现。新增 `query-presentation.test.ts`，真实无模拟浏览器验收 `tests/e2e/vpp-query.cjs`，配合同级 sdn-agent 的隔离实验脚本；IPv6 外层及 viewer 查询已纳入测试。未发布或修改 v1.0。
 
 项目路径：`~/program/github/sdn-web`，Windows 共享路径为 `X:\program\github\sdn-web`。
 

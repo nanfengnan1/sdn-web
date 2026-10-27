@@ -124,8 +124,9 @@ BD 级 ARP/ND 抑制策略作用于当前及未来的 VXLAN 成员，不修改�
 运行数据发生变化时游标可能失效，此时重新查询即可。
 
 IPv6 地址和 OSPFv3 还要求节点操作系统启用 IPv6，并具备所需的接口地址。
-旧 EVPN 实验的 ``configureSystem`` 示例会关闭 IPv6；应先通过受管的
-``NODE_NETWORK`` 配置显式调整系统开关。地址表单不会隐式修改整台节点的 sysctl。
+旧版 EVPN 实验的 ``configureSystem`` 曾关闭 IPv6；当前 Controller 改为启用 IPv6 和转发。
+沿用旧配置时，通过受管的 ``NODE_NETWORK`` 配置显式调整系统开关。
+地址表单不会隐式修改整台节点的 sysctl。
 
 承载 IPv6 主机的业务 SVI 还必须有可用的链路本地地址。若沿用了 IPv4 实验的
 ``addrgenmode none``，仅添加全局 IPv6 地址不足以保证冷启动邻居解析。
@@ -134,3 +135,16 @@ IPv6 地址和 OSPFv3 还要求节点操作系统启用 IPv6，并具备所需�
 ``fe80::ff:fe00:10/64``。已启用接口仅改为 ``addrgenmode eui64`` 不会立即补生成地址，
 应显式配置，避免为生成地址而中断现有业务。无地址的 L3VNI SVI br50000 仍可保持
 ``addrgenmode none``。不要把主机先 ping 网关后的被动学习当作冷启动修复。
+
+VPP 节点运行查询
+----------------------------------------------------------------
+
+VPP 节点的查询区显示“VPP 数据面”。“隧道 → VXLAN”展示逻辑名称、原生接口、
+VNI、本地 VTEP、地址族、远端数和 BUM 数；展开行查看目的 MAC 与远端 VTEP 映射。
+IPv4/IPv6 筛选指外层 VTEP 地址族，两种 underlay 均可承载 IPv4/IPv6 业务流量。
+“查询邻居”可筛选远端 VTEP；VRF、BD 与接口名称也可组合筛选。
+
+“接口”包括 LCP 接口、BVI 和原生 VXLAN，FDB 区分本地、远端和 BVI 条目。
+来源 vpp 表示来自原生 VPP 查询；FRR 的 BGP/EVPN 查询仍显示协议后端来源。
+viewer 可以执行这些查询。没有远端时源地址型 VXLAN 接口仍会保留，展开表为空
+不代表接口消失；查询失败与空结果分别显示。

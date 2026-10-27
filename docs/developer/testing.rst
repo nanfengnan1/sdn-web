@@ -138,3 +138,24 @@ Controller 契约模拟，覆盖 false/0 表单、VRF 身份保留、草稿版�
 * 新页面：加载、空、错误、只读与管理员路径，真实浏览器确认没有脚本错误和凭据持久化。
 
 验证配置成功时还要区分协议收敛和业务转发。扩容上限、多 Gateway 副本、长时间压力及任意规模拓扑不在现有功能用例所证明的范围内。
+
+VPP 真实查询
+^^^^^^^^^^^^
+
+query-presentation.test.ts 覆盖原生字段展示与状态格式。
+tests/e2e/vpp-query.cjs 使用真实浏览器和三组件，不模拟 API：viewer 登录、
+IPv6 多点 VXLAN、远端单播/BUM 展开、地址族及远端过滤、原生接口和脚本错误检查。
+
+先准备 alpine/sdn-agent:vpp-dev、alpine/sdn-controller:vpp-dev、alpine/sdn-web:vpp-dev。
+在同级 Agent 仓库启动 SDN_VPP_STACK=1 SDN_VPP_BROWSER=1 SDN_VPP_UNDERLAY=6
+的 lab/vpp_evpn.py；看到 READY 后，设置 SDN_TEST_ACCESS 指向该实验生成的
+artifacts/vpp/dual-ipv6/stack-access.json，再执行：
+
+.. code-block:: bash
+
+   node tests/e2e/vpp-query.cjs
+
+需安装 playwright-core，或通过 PLAYWRIGHT_MODULE 指定已安装模块；CHROME_BIN
+指定本机 Chrome。远程运行浏览器时保持该目录可写，并将 access 文件 url 改为可达的
+实验 Web 地址。报告和截图写回目录，Agent 脚本随后继续撤销测试并清理临时资源。
+临时 access 文件含测试令牌，不提交版本库；脚本结束会删除它。
