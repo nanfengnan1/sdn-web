@@ -5,12 +5,12 @@ export type ResourceCategory = 'tenant' | 'bridge' | 'interface' | 'tunnel' | 'r
 export type FieldValue = string | number | boolean | undefined;
 export interface ResourceField {
   key: string; label: string; type?: 'number' | 'boolean' | 'list' | 'select';
-  required?: boolean; min?: number; max?: number; hint?: string; options?: { label: string; value: string }[];
+  feature?: string; required?: boolean; min?: number; max?: number; hint?: string; options?: { label: string; value: string }[];
   reference?: 'tenant' | 'bridge' | 'interface' | 'vxlan'; default?: FieldValue;
 }
 export interface ResourceAction {
   id: string; title: string; section: ResourceSection; code: string; action: string; data: string;
-  fields: ResourceField[]; description?: string; identity?: string[];
+  fields: ResourceField[]; feature?: string; description?: string; identity?: string[];
 }
 export const resourceCategories: { id: ResourceCategory; label: string }[] = [
   { id: 'tenant', label: '租户与网络' }, { id: 'bridge', label: '二层网络 BD' },
@@ -21,7 +21,7 @@ export const sections: { id: ResourceSection; category: ResourceCategory; label:
   { id: 'tenant', category: 'tenant', label: '租户与网络', description: '管理 VRF、L3VNI 与 BD 的租户归属，查看租户网络关系。' },
   { id: 'bridge', category: 'bridge', label: '二层网络 BD', description: '管理 BD 属性、成员接口与 ARP / ND 抑制；VXLAN 加入或移出 BD 在此配置。接口地址请到“接口”配置。' },
   { id: 'interface', category: 'interface', label: '接口', description: '管理接口状态、MTU、MAC 和 IPv4 / IPv6 地址，包括 BD 的三层地址。路由与协议请到“路由”配置。' },
-  { id: 'vxlan', category: 'tunnel', label: 'VXLAN', description: '当前开放 VXLAN 隧道：创建或删除隧道，设置 VNI、VTEP 与 Underlay。成员归属请到“二层网络 BD”配置。' },
+  { id: 'vxlan', category: 'tunnel', label: 'VXLAN', description: '当前开放 VXLAN 隧道：创建或删除隧道，设置 VNI、VTEP 与 Underlay；支持 VPP 外层 VRF 修改。成员归属请到“二层网络 BD”配置。' },
   { id: 'bgp', category: 'routing', label: 'BGP', description: '管理 BGP 实例、邻居和地址族，包括 EVPN 发布与运行状态查询。' },
   { id: 'ospf', category: 'routing', label: 'OSPF', description: '管理 OSPFv2 / OSPFv3 实例、协议接口及网段。接口地址请到“接口”配置。' },
 ];
@@ -42,6 +42,7 @@ const rts: ResourceField[] = [
 const portFields = [ref('bridge', 'BD', 'bridge'), ref('port', '成员接口 / VXLAN', 'interface')];
 const family: ResourceField = { key:'family', label:'地址族', type:'select', required:true, default:'IPV4', options:[{label:'IPv4 Unicast',value:'IPV4'},{label:'IPv6 Unicast',value:'IPV6'}] };
 const vrf: ResourceField = { ...str('vrf','VRF（留空表示默认实例）',false), reference:'tenant' };
+const encapVrf: ResourceField = { ...num('encapVrfId', '外层 VRF 表 ID', 0, 4294967294, false), feature: 'vxlan-encap-vrf/v1', default: 0, hint: '0 使用默认承载路由表。非零值需先准备该 VRF 的底层接口、VTEP 可达性及 Linux 控制映射；与租户 VRF 独立。' };
 const actions: ResourceAction[] = [
   { id: 'tenant-create', title: '创建租户 VRF', section: 'tenant', code: 'TENANT', action: 'CREATE', data: 'tenant', fields: [name('租户 VRF 名称'), num('tableId', '路由表编号')], description: '只创建 VRF；BD、L3VNI 和路由协议分别配置。' },
   { id: 'tenant-delete', title: '删除租户 VRF', section: 'tenant', code: 'TENANT', action: 'DELETE', data: 'tenant', fields: [name('租户 VRF 名称', 'tenant')], description: '被 BD、L3VNI 或协议引用的 VRF 需要先解除引用。' },
@@ -58,7 +59,8 @@ const actions: ResourceAction[] = [
   { id: 'interface-set', title: '修改接口属性', section: 'interface', code: 'INTERFACE', action: 'SET', data: 'interface', fields: [name('接口', 'interface'), bool('up', '管理状态 Up'), num('mtu', 'MTU', 68, 65535, false), str('mac', 'MAC 地址', false)] },
   { id: 'address-create', title: '接口 / BD 添加地址', section: 'interface', code: 'ADDRESS', action: 'CREATE', data: 'address', fields: [ref('interface', '接口 / BD', 'interface'), { ...str('prefix', 'IPv4 / IPv6 地址及前缀'), hint: '如 192.168.10.254/24 或 2001:db8:10::1/64' }] },
   { id: 'address-delete', title: '接口 / BD 删除地址', section: 'interface', code: 'ADDRESS', action: 'DELETE', data: 'address', fields: [ref('interface', '接口 / BD', 'interface'), str('prefix', 'IPv4 / IPv6 地址及前缀')] },
-  { id: 'vxlan-create', title: '创建 VXLAN', section: 'vxlan', code: 'VXLAN', action: 'CREATE', data: 'vxlan', fields: [name('VXLAN 接口名'), num('vni', 'VNI', 1, 16777215), str('local', '本地 VTEP 地址'), { ...num('port', 'UDP 端口', 1, 65535), default: 4789 }, bool('learning', '隧道动态 MAC 学习'), { ...str('underlay', 'Underlay 接口', false), reference: 'interface' }] },
+  { id: 'vxlan-create', title: '创建 VXLAN', section: 'vxlan', code: 'VXLAN', action: 'CREATE', data: 'vxlan', fields: [name('VXLAN 接口名'), num('vni', 'VNI', 1, 16777215), str('local', '本地 VTEP 地址'), { ...num('port', 'UDP 端口', 1, 65535), default: 4789 }, bool('learning', '隧道动态 MAC 学习'), encapVrf, { ...str('underlay', 'Underlay 接口', false), reference: 'interface' }] },
+  { id: 'vxlan-encap-vrf-set', title: '修改 VXLAN 外层 VRF', section: 'vxlan', code: 'VXLAN', action: 'SET', data: 'vxlan', feature: 'vxlan-encap-vrf/v1', fields: [name('VXLAN 接口名', 'vxlan'), { ...encapVrf, required: true }, { ...str('underlay', '新的 Underlay 接口（可选）', false), reference: 'interface' }], description: '保留 VXLAN 接口、VNI 和 BD 绑定。外层 VRF 必须存在；显式 Underlay 接口需已属于目标 VRF。提交候选后切换承载路径，可能短暂影响通信。' },
   { id: 'vxlan-delete', title: '删除 VXLAN', section: 'vxlan', code: 'VXLAN', action: 'DELETE', data: 'vxlan', fields: [name('VXLAN 接口名', 'vxlan')] },
   { id: 'bgp-create', title: '创建 BGP 实例', section: 'bgp', code: 'BGP_INSTANCE', action: 'CREATE', data: 'bgp', fields: [...bgp, str('routerId', 'Router ID'), bool('defaultIpv4Unicast', '默认启用 IPv4 Unicast')] },
   { id: 'bgp-set', title: '修改 BGP 实例', section: 'bgp', code: 'BGP_INSTANCE', action: 'SET', data: 'bgp', fields: [...bgp, str('routerId', 'Router ID', false), bool('defaultIpv4Unicast', '默认启用 IPv4 Unicast')] },
@@ -85,7 +87,7 @@ const actions: ResourceAction[] = [
   { id: 'ospf-interface-delete', title: '删除 OSPFv2 接口配置', section: 'ospf', code: 'OSPF_INTERFACE', action: 'DELETE', data: 'ospfInterface', fields: [name('接口', 'interface')] },
 ];
 export const resourceActions = actions;
-actions.push({id:'neighbor-keepalive-set',title:'邻居保活（节点开关）',section:'bridge',code:'NEIGHBOR_KEEPALIVE',action:'SET',data:'neighborKeepalive',fields:[{...bool('enabled','邻居保活'),required:true,default:false}],description:'仅 VPP 数据面支持。对本节点接入 BD 的动态 IPv4 / IPv6 邻居发送单播探测；收到有效应答才续期，连续三次无应答撤销对应 MAC/IP 通告。默认关闭；加入候选并提交后生效。'});
+actions.push({id:'neighbor-keepalive-set',title:'邻居保活（节点开关）',section:'bridge',feature:'neighbor-keepalive/v1',code:'NEIGHBOR_KEEPALIVE',action:'SET',data:'neighborKeepalive',fields:[{...bool('enabled','邻居保活'),required:true,default:false}],description:'仅 VPP 数据面支持。对本节点接入 BD 的动态 IPv4 / IPv6 邻居发送单播探测；收到有效应答才续期，连续三次无应答撤销对应 MAC/IP 通告。默认关闭；加入候选并提交后生效。'});
 // These protocol operations use the same candidate and dependency planner as
 // Linux resources. The UI never generates CLI commands.
 for (const action of ['SET','DELETE']) {
@@ -193,3 +195,9 @@ export const queryKinds: {kind:string;label:string;section:ResourceSection}[] = 
   {kind:'EVPN_ROUTES',label:'EVPN 路由',section:'bgp'}, {kind:'EVPN_VNI',label:'EVPN VNI',section:'bgp'},
   {kind:'OSPF_SUMMARY',label:'OSPF 概要',section:'ospf'}, {kind:'OSPF_INTERFACES',label:'OSPF 接口',section:'ospf'}, {kind:'OSPF_NEIGHBORS',label:'OSPF 邻居',section:'ospf'}, {kind:'OSPF_DATABASE',label:'OSPF LSDB',section:'ospf'}, {kind:'OSPF_ROUTES',label:'OSPF 路由',section:'ospf'},
 ];
+
+export function resourceActionsForNode(node: Node | undefined, section: ResourceSection): ResourceAction[] {
+  const has = (feature?: string) => !feature || !!node?.capabilities?.features?.includes(feature);
+  return resourceActions.filter(a => a.section === section && has(a.feature))
+    .map(a => ({ ...a, fields: a.fields.filter(f => has(f.feature)) }));
+}

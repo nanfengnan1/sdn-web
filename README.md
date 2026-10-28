@@ -1,5 +1,7 @@
 ﻿# sdn-web
 
+资源工作台的“隧道 / VXLAN”支持 VPP 外层 VRF 创建字段、修改操作和运行查询列。表 ID 0 表示默认承载表，与租户 VRF 独立；入口按节点能力显示。详见 [VXLAN 外层 VRF 配置](docs/user/resources.rst)。
+
 `sdn-web` 是面向网络操作者的 **SDN 管理控制台**：用 Vue/Vben/Element Plus 提供节点、网络资源、配置候选、执行任务和拓扑界面，用 Go Gateway 把浏览器 HTTP/SSE 请求转换为 Controller 的公开 `sdn.controller.v1.North` gRPC 调用。
 
 项目负责用户交互、认证复核和协议适配。Controller 负责期望配置、规划、任务与持久化，Agent 通过可扩展适配器管理本地 Linux/FRR；Web 不直接操作 Agent、执行网络命令或访问 etcd。设计、状态归属和请求时序见[架构说明](docs/developer/architecture.rst)。

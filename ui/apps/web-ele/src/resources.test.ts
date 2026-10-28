@@ -1,8 +1,20 @@
 import { describe,it,expect } from 'vitest';
-import { buildOperation,initialFields,resourceActions,resourceTree,supports } from './resources';
+import { buildOperation,initialFields,resourceActions,resourceTree,resourceActionsForNode,supports } from './resources';
 import type { Node,Operation } from './types';
 const action=(id:string)=>resourceActions.find(a=>a.id===id)!;
 describe('resource forms',()=>{
+ it('gates outer VRF controls and preserves an explicit return to VRF zero',()=>{
+  const node={capabilities:{operations:[{code:'VXLAN',rollback:true}],features:['vxlan-encap-vrf/v1']}} as unknown as Node;
+  const available=resourceActionsForNode(node,'vxlan');
+  const set=available.find(a=>a.id==='vxlan-encap-vrf-set')!;
+  expect(buildOperation(set,{name:'vx50000',encapVrfId:0})).toEqual({code:'VXLAN',action:'SET',vxlan:{name:'vx50000',encapVrfId:0}});
+  expect(()=>buildOperation(set,{name:'vx50000'})).toThrow();
+  const old={capabilities:{operations:[{code:'VXLAN',rollback:true}],features:[]}} as unknown as Node;
+  const hidden=resourceActionsForNode(old,'vxlan');
+  expect(hidden.some(a=>a.id==='vxlan-encap-vrf-set')).toBe(false);
+  expect(hidden.find(a=>a.id==='vxlan-create')!.fields.some(f=>f.key==='encapVrfId')).toBe(false);
+ });
+
  it('keeps the VPP neighbor policy singleton and preserves explicit disable',()=>{
   const a=action('neighbor-keepalive-set');
   expect(buildOperation(a,initialFields(a))).toEqual({code:'NEIGHBOR_KEEPALIVE',action:'SET',neighborKeepalive:{enabled:false}});

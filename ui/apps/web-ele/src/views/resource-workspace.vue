@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed,nextTick,onBeforeUnmount,onMounted,ref,watch } from 'vue';import { useRouter } from 'vue-router';
 import { request,errorText,uid,APIError } from '../api';import { explicitRejection } from '../workflow';import { session } from '../session';
-import { resourceActions,resourceCategories,sections,routingSections,tunnelSections,initialFields,buildOperation,operationData,objectName,resourceSection,resourceTree,supports,type ResourceCategory,type ResourceSection,type ResourceField,type FieldValue } from '../resources';
+import { resourceActions,resourceActionsForNode,resourceCategories,sections,routingSections,tunnelSections,initialFields,buildOperation,operationData,objectName,resourceSection,resourceTree,supports,type ResourceCategory,type ResourceSection,type ResourceField,type FieldValue } from '../resources';
 import type { Node,Page,NodeResourcesState,ConfigurationState,Change,Plan,Job,Operation } from '../types';import ResourceQuery from './resource-query.vue';
 const nodes=ref<Node[]>([]);const nodeId=ref(sessionStorage.getItem('sdn.resource.node')||'');const resources=ref<NodeResourcesState>();const change=ref<Change>();const plan=ref<Plan>();
 const category=ref<ResourceCategory>('tenant');const routingSection=ref<ResourceSection>('bgp');const tunnelSection=ref<ResourceSection>('vxlan');
@@ -12,18 +12,18 @@ const busy=ref(false);const error=ref('');const notice=ref('');const recoveryId=
 const router=useRouter();let active=new AbortController();let generation=0;
 const node=computed(()=>nodes.value.find(n=>n.nodeId===nodeId.value));
 const objects=computed(()=>resources.value?.resources?.objects||[]);const tree=computed(()=>resourceTree(objects.value));
-const actions=computed(()=>resourceActions.filter(a=>a.section===section.value&&(a.code!=='NEIGHBOR_KEEPALIVE'||(supports(node.value,a.code)&&node.value?.capabilities?.features?.includes('neighbor-keepalive/v1')))));
+const actions=computed(()=>resourceActionsForNode(node.value,section.value));
 const action=computed(()=>actions.value.find(a=>a.id===actionId.value));
 const rows=computed(()=>objects.value.filter(o=>resourceSection(o)===section.value));
 const admin=computed(()=>session.role==='admin');const openChange=computed(()=>!!change.value&&!change.value.frozen&&!change.value.aborted);
 const mutable=computed(()=>admin.value&&openChange.value&&!pendingCommit.value&&resources.value?.mode==='resources'&&!!resources.value.adopted&&!busy.value);
-const supported=computed(()=>!!action.value&&supports(node.value,action.value.code));
+const supported=computed(()=>!!action.value&&choiceSupported(action.value.id));
 // Element Plus 2.14 writes InputNumber aria-disabled only when it mounts.
 // Key numeric controls by effective disabled state so keyboard/AT users see
 // the same enabled state as the native input after Begin or a saved edit.
-function choiceSupported(id:string){const a=resourceActions.find(v=>v.id===id);return !!a&&supports(node.value,a.code);}
+function choiceSupported(id:string){const a=resourceActions.find(v=>v.id===id);return !!a&&supports(node.value,a.code)&&(!a.feature||!!node.value?.capabilities?.features?.includes(a.feature));}
 watch(section,()=>{actionId.value=actions.value[0]?.id||'';});watch(actionId,()=>{if(action.value)values.value=initialFields(action.value);},{immediate:true});
-watch(nodeId,()=>{sessionStorage.setItem('sdn.resource.node',nodeId.value);plan.value=undefined;values.value=action.value?initialFields(action.value):{};void loadResources();});
+watch(nodeId,()=>{sessionStorage.setItem('sdn.resource.node',nodeId.value);plan.value=undefined;if(!action.value)actionId.value=actions.value[0]?.id||'';values.value=action.value?initialFields(action.value):{};void loadResources();});
 function references(field:ResourceField):string[]{const code=field.reference==='tenant'?'TENANT':field.reference==='bridge'?'BD':field.reference==='vxlan'?'VXLAN':'';return [...new Set(objects.value.filter(o=>code?o.code===code:['BD','VXLAN','INTERFACE'].includes(o.code)).map(o=>String(operationData(o).name||'')).filter(Boolean))].sort();}
 function rowAction(row:Operation,deleteAction=false){return actions.value.find(a=>a.code===row.code&&(deleteAction?['DELETE','UNBIND'].includes(a.action):a.action==='SET')&&a.data!=='bridgePolicy');}
 async function selectRow(row:Operation,remove=false){const a=rowAction(row,remove);if(!a)return;actionId.value=a.id;await nextTick();const data=operationData(row);values.value=initialFields(a);const identity=['name','asn','vrf','interface','tenant','bridge','port','vni','prefix','family','protocol'];for(const f of a.fields){if((f.required||identity.includes(f.key))&&data[f.key]!==undefined)values.value[f.key]=data[f.key] as FieldValue;}document.getElementById('resource-form')?.scrollIntoView({behavior:'smooth',block:'start'});}
