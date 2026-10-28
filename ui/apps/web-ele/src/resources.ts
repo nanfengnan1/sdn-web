@@ -85,6 +85,7 @@ const actions: ResourceAction[] = [
   { id: 'ospf-interface-delete', title: '删除 OSPFv2 接口配置', section: 'ospf', code: 'OSPF_INTERFACE', action: 'DELETE', data: 'ospfInterface', fields: [name('接口', 'interface')] },
 ];
 export const resourceActions = actions;
+actions.push({id:'neighbor-keepalive-set',title:'邻居保活（节点开关）',section:'bridge',code:'NEIGHBOR_KEEPALIVE',action:'SET',data:'neighborKeepalive',fields:[{...bool('enabled','邻居保活'),required:true,default:false}],description:'仅 VPP 数据面支持。对本节点接入 BD 的动态 IPv4 / IPv6 邻居发送单播探测；收到有效应答才续期，连续三次无应答撤销对应 MAC/IP 通告。默认关闭；加入候选并提交后生效。'});
 // These protocol operations use the same candidate and dependency planner as
 // Linux resources. The UI never generates CLI commands.
 for (const action of ['SET','DELETE']) {
@@ -141,12 +142,13 @@ export function supports(node: Node | undefined, code: string): boolean {
   return !!node?.capabilities?.operations.some(cap => cap.code === code && cap.rollback);
 }
 export function objectName(operation: Operation): string {
+  if (operation.code === 'NEIGHBOR_KEEPALIVE') return '节点邻居保活';
   const data = operationData(operation);
   return String(data.name ?? data.bridge ?? data.tenant ?? data.interface ?? data.vrf ?? data.prefix ?? data.vni ?? data.asn ?? operation.id ?? operation.code);
 }
 export function resourceSection(operation: Operation): ResourceSection | undefined {
   if (['TENANT','TENANT_L3VNI','BD_TENANT'].includes(operation.code)) return 'tenant';
-  if (['BD','BD_PORT','BD_SUPPRESSION'].includes(operation.code)) return 'bridge';
+  if (['BD','BD_PORT','BD_SUPPRESSION','NEIGHBOR_KEEPALIVE'].includes(operation.code)) return 'bridge';
   if (operation.code === 'VXLAN') return 'vxlan';
   if (operation.code.startsWith('BGP') || operation.code.startsWith('EVPN')) return 'bgp';
   if (operation.code.startsWith('OSPF')) return 'ospf';
@@ -182,6 +184,7 @@ export function resourceTree(objects: Operation[]): ResourceTree[] {
 }
 
 export const queryKinds: {kind:string;label:string;section:ResourceSection}[] = [
+  {kind:'NEIGHBOR_KEEPALIVE_STATUS',label:'邻居保活状态（VPP）',section:'bridge'},
   {kind:'TENANTS',label:'VRF / 路由表',section:'tenant'}, {kind:'BRIDGES',label:'BD',section:'bridge'},
   {kind:'PORTS',label:'BD 成员端口',section:'bridge'}, {kind:'FDB',label:'MAC / FDB',section:'bridge'}, {kind:'NEIGHBORS',label:'ARP / ND 邻居',section:'bridge'},
   {kind:'INTERFACES',label:'接口属性与状态',section:'interface'}, {kind:'ADDRESSES',label:'IPv4 / IPv6 地址',section:'interface'},

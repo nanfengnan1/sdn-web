@@ -443,3 +443,10 @@ Nginx 与 Gateway 两个独立进程；保留独立 `ui` / `gateway` 镜像 targ
 后者分三笔提交空 VRF、后续 BD/地址、L3VNI，验证查询错误和 viewer，0 pageerror。
 数字控件从禁用变启用的 ARIA 状态已修复并加入浏览器回归。
 报告见 [独立资源验证](docs/resource-validation.md)。
+
+## VPP 邻居保活界面
+
+“二层网络 BD”新增节点邻居保活开关及运行状态查询。按 neighbor-keepalive/v1
+和 Agent 操作能力显示，仅 VPP 支持。开关仍先加入候选，预览/提交后生效；
+明确 false 必须保留。查询显示每 IP 的状态、尝试次数、最近确认时间、下一次探测，
+并显示节点发送错误与容量计数。查询来自 VPP，候选配置不能冒充已生效状态。

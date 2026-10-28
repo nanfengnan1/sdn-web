@@ -3,6 +3,13 @@ import { buildOperation,initialFields,resourceActions,resourceTree,supports } fr
 import type { Node,Operation } from './types';
 const action=(id:string)=>resourceActions.find(a=>a.id===id)!;
 describe('resource forms',()=>{
+ it('keeps the VPP neighbor policy singleton and preserves explicit disable',()=>{
+  const a=action('neighbor-keepalive-set');
+  expect(buildOperation(a,initialFields(a))).toEqual({code:'NEIGHBOR_KEEPALIVE',action:'SET',neighborKeepalive:{enabled:false}});
+  expect(buildOperation(a,{enabled:true}).neighborKeepalive).toEqual({enabled:true});
+  expect(()=>buildOperation(a,{})).toThrow();
+  expect(supports({capabilities:{operations:[]}} as unknown as Node,a.code)).toBe(false);
+ });
  it('retains explicit false/zero while optional blank fields are untouched',()=>{
   const a=action('bridge-set');const op=buildOperation(a,{...initialFields(a),name:'br10',stp:false,ageingTime:0});
   expect(op).toEqual({code:'BD',action:'SET',bridge:{name:'br10',stp:false,ageingTime:0}});
