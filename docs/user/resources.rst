@@ -32,6 +32,8 @@ Controller 的 Desired 是提交意图：Agent 执行失败后即使回滚成功
 自动退回旧值。应查看失败 Job 和运行查询，核对后显式提交修正目标。
 
 租户关系树包含空 VRF、租户下的 BD、成员端口、VXLAN 和 BD 的三层地址。
+BD 只有配置了 IPv4 或 IPv6 地址才显示 ``L3 / Interface / Addresses`` 子项；
+无地址的 L3VNI BD 仍保留 BD 和 VXLAN。树内类型标签使用英文 ``Port``、``Address``、``Unbound``。
 未绑定租户的 BD、未加入 BD 的 VXLAN 也会显示。关系树只展示 BD 的地址关联，
 地址统一在“接口”页编辑，不会创建另一份网关配置。
 

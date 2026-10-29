@@ -48,6 +48,38 @@ describe('resource forms',()=>{
  });
 });
 describe('tenant relation tree',()=>{
+ it('keeps an addressless L3VNI bridge and its ports without an empty L3 child',()=>{
+  const ops:Operation[]=[
+   {code:'TENANT',action:'CREATE',tenant:{name:'TENANT-A',tableId:1001}},
+   {code:'TENANT_L3VNI',action:'BIND',l3vni:{tenant:'TENANT-A',vni:50000}},
+   {code:'BD',action:'CREATE',bridge:{name:'br50000'}},
+   {code:'BD_TENANT',action:'BIND',binding:{bridge:'br50000',tenant:'TENANT-A'}},
+   {code:'BD_PORT',action:'CREATE',bridgePort:{bridge:'br50000',port:'vx50000'}},
+   {code:'VXLAN',action:'CREATE',vxlan:{name:'vx50000',vni:50000}},
+   {code:'ADDRESS',action:'CREATE',address:{interface:'access0',prefix:'192.0.2.1/24'}},
+  ];
+  const tree=resourceTree(ops);
+  expect(tree[0]?.label).toContain('L3VNI 50000');
+  expect(tree[0]?.children).toEqual([{id:'bd/br50000',label:'br50000',kind:'BD',children:[
+   {id:'port/vx50000',label:'vx50000',kind:'VXLAN'},
+  ]}]);
+ });
+ it('uses English child labels and hides L3 after the final BD address is removed',()=>{
+  const ops:Operation[]=[
+   {code:'BD',action:'CREATE',bridge:{name:'br100'}},
+   {code:'BD_PORT',action:'CREATE',bridgePort:{bridge:'br100',port:'access1'}},
+   ...['198.18.100.252/24','2001:db8:100::252/64'].map(prefix=>({code:'ADDRESS',action:'CREATE',address:{interface:'br100',prefix}})),
+  ];
+  const tree=resourceTree(ops);
+  expect(tree[0]?.kind).toBe('Unbound');
+  const children=tree[0]?.children?.[0]?.children;
+  expect(children?.[0]).toEqual({id:'port/access1',label:'access1',kind:'Port'});
+  expect(children?.[1]).toEqual({id:'l3/br100',label:'Interface / Addresses',kind:'L3',children:[
+   {id:'addr/br100/198.18.100.252/24',label:'198.18.100.252/24',kind:'Address'},
+   {id:'addr/br100/2001:db8:100::252/64',label:'2001:db8:100::252/64',kind:'Address'},
+  ]});
+  expect(resourceTree(ops.filter(o=>o.code!=='ADDRESS'))[0]?.children?.[0]?.children).toEqual([children?.[0]]);
+ });
  it('keeps empty tenants, orphan bridges and tunnels, and shares BD addresses',()=>{
   const ops:Operation[]=[{code:'TENANT',action:'CREATE',tenant:{name:'empty',tableId:1}},{code:'TENANT',action:'CREATE',tenant:{name:'A',tableId:1001}},{code:'BD',action:'CREATE',bridge:{name:'br10'}},{code:'BD',action:'CREATE',bridge:{name:'orphan'}},{code:'BD_TENANT',action:'BIND',binding:{bridge:'br10',tenant:'A'}},{code:'ADDRESS',action:'CREATE',address:{interface:'br10',prefix:'2001:db8::1/64'}},{code:'VXLAN',action:'CREATE',vxlan:{name:'vx100',vni:100}},{code:'TENANT_L3VNI',action:'BIND',l3vni:{tenant:'A',vni:50000}}];
   const tree=resourceTree(ops);expect(tree[0]?.children).toEqual([]);expect(tree[1]?.label).toContain('50000');expect(tree[1]?.children?.[0]?.children?.[0]?.children?.[0]?.label).toBe('2001:db8::1/64');expect(tree[2]?.children?.map(c=>c.id)).toEqual(['bd/orphan','vx/vx100']);

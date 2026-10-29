@@ -474,6 +474,9 @@ BD 成员关系统一归二层网络 BD。`resources.ts` 的分类定义控制�
 未知资源不再默认落入接口分类。切换分类保留已保存的共享候选，重置未保存表单及查询状态；
 仍由 Controller 统一生成计划并处理资源依赖。
 
+租户关系树的 L3 子项仅在 BD 存在 ADDRESS 时显示；无地址的 L3VNI BD 与 VXLAN 成员仍保留。
+树内展示标签使用英文 Port / Address / Interface / Addresses / Unbound，资源实际名称不改写。
+
 新增实现：`views/resource-workspace.vue`、`views/resource-query.vue`、`resources.ts`，
 Gateway 资源契约测试 `resources_test.go` 与 UI 资源单测 `resources.test.ts`。
 真实表单验收脚本为 `tests/e2e/resources.cjs`，要求显式指定隔离环境和凭据文件。

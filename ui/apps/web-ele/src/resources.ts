@@ -184,20 +184,21 @@ export function resourceTree(objects: Operation[]): ResourceTree[] {
   const makeBridge = (o: Operation): ResourceTree => {
     const name = String(operationData(o).name);
     const members = ports.filter(p => p.bridge === name);
+    const bridgeAddresses = addresses.filter(a => a.interface === name);
     return { id: 'bd/'+name, label: name, kind: 'BD', children: [
-      ...members.map(p => ({ id: 'port/'+String(p.port), label: String(p.port), kind: vxlans.some(v => v.name === p.port) ? 'VXLAN' : '端口' })),
-      { id: 'l3/'+name, label: '三层接口 / 地址', kind: 'L3', children: addresses.filter(a => a.interface === name).map(a => ({ id: 'addr/'+name+'/'+String(a.prefix), label: String(a.prefix), kind: '地址' })) },
+      ...members.map(p => ({ id: 'port/'+String(p.port), label: String(p.port), kind: vxlans.some(v => v.name === p.port) ? 'VXLAN' : 'Port' })),
+      ...(bridgeAddresses.length ? [{ id: 'l3/'+name, label: 'Interface / Addresses', kind: 'L3', children: bridgeAddresses.map(a => ({ id: 'addr/'+name+'/'+String(a.prefix), label: String(a.prefix), kind: 'Address' })) }] : []),
     ] };
   };
   const bridges = byCode('BD');
   const tree: ResourceTree[] = tenants.map(o => {
     const name = String(operationData(o).name);
     const l3 = byCode('TENANT_L3VNI').map(operationData).find(v => v.tenant === name);
-    return { id: 'vrf/'+name, label: name + ' · table ' + String(operationData(o).tableId) + (l3 ? ' · L3VNI ' + String(l3.vni) : ' · 未绑定 L3VNI'), kind: 'VRF', children: bridges.filter(b => bindings.some(v => v.tenant === name && v.bridge === operationData(b).name)).map(makeBridge) };
+    return { id: 'vrf/'+name, label: name + ' · table ' + String(operationData(o).tableId) + (l3 ? ' · L3VNI ' + String(l3.vni) : ' · No L3VNI'), kind: 'VRF', children: bridges.filter(b => bindings.some(v => v.tenant === name && v.bridge === operationData(b).name)).map(makeBridge) };
   });
   const unbound = bridges.filter(b => !bindings.some(v => v.bridge === operationData(b).name)).map(makeBridge);
   const standaloneVxlan = vxlans.filter(v => !ports.some(p => p.port === v.name)).map(v => ({ id: 'vx/'+String(v.name), label: String(v.name)+' · VNI '+String(v.vni), kind: 'VXLAN' }));
-  if (unbound.length || standaloneVxlan.length) tree.push({ id: 'unbound', label: '未绑定租户 / BD', kind: '未绑定', children: [...unbound, ...standaloneVxlan] });
+  if (unbound.length || standaloneVxlan.length) tree.push({ id: 'unbound', label: 'Unbound tenant / BD', kind: 'Unbound', children: [...unbound, ...standaloneVxlan] });
   return tree;
 }
 
