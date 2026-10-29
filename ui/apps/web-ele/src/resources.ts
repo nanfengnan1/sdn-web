@@ -1,10 +1,10 @@
 import type { Node, Operation } from './types';
 
-export type ResourceSection = 'tenant' | 'bridge' | 'interface' | 'vxlan' | 'bgp' | 'ospf';
-export type ResourceCategory = 'tenant' | 'bridge' | 'interface' | 'tunnel' | 'routing';
+export type ResourceSection = 'tenant' | 'bridge' | 'interface' | 'vxlan' | 'bgp' | 'ospf' | 'ips';
+export type ResourceCategory = 'tenant' | 'bridge' | 'interface' | 'tunnel' | 'routing' | 'ips';
 export type FieldValue = string | number | boolean | undefined;
 export interface ResourceField {
-  key: string; label: string; type?: 'number' | 'boolean' | 'list' | 'select';
+  key: string; label: string; type?: 'number' | 'boolean' | 'list' | 'select' | 'rule';
   feature?: string; required?: boolean; min?: number; max?: number; hint?: string; options?: { label: string; value: string }[];
   reference?: 'tenant' | 'bridge' | 'interface' | 'vxlan'; default?: FieldValue;
 }
@@ -15,9 +15,10 @@ export interface ResourceAction {
 export const resourceCategories: { id: ResourceCategory; label: string }[] = [
   { id: 'tenant', label: '租户与网络' }, { id: 'bridge', label: '二层网络 BD' },
   { id: 'interface', label: '接口' }, { id: 'tunnel', label: '隧道' },
-  { id: 'routing', label: '路由' },
+  { id: 'routing', label: '路由' }, { id: 'ips', label: 'IPS' },
 ];
 export const sections: { id: ResourceSection; category: ResourceCategory; label: string; description: string }[] = [
+ { id: 'ips', category: 'ips', label: 'Snort IPS', description: '管理 Snort3 规则与 VPP 接口绑定。提交后校验配置并热重载；绑定接口前请确认规则和流量方向。仅检查经过三层接口/BVI 的 IPv4/IPv6 流量，纯二层转发不适用。绑定变更会短暂切换接口 Up/Down；Snort 断连时已绑定方向丢弃流量。' },
   { id: 'tenant', category: 'tenant', label: '租户与网络', description: '管理 VRF、L3VNI 与 BD 的租户归属，查看租户网络关系。' },
   { id: 'bridge', category: 'bridge', label: '二层网络 BD', description: '管理 BD 属性、成员接口与 ARP / ND 抑制；VXLAN 加入或移出 BD 在此配置。接口地址请到“接口”配置。' },
   { id: 'interface', category: 'interface', label: '接口', description: '管理接口状态、MTU、MAC 和 IPv4 / IPv6 地址，包括 BD 的三层地址。路由与协议请到“路由”配置。' },
@@ -86,6 +87,19 @@ const actions: ResourceAction[] = [
   { id: 'ospf-interface-set', title: '配置 OSPFv2 接口', section: 'ospf', code: 'OSPF_INTERFACE', action: 'SET', data: 'ospfInterface', fields: [name('接口', 'interface'), bool('passive', 'Passive'), { key: 'networkType', label: '网络类型', type: 'select', options: ['broadcast','point-to-point','non-broadcast','point-to-multipoint'].map(value => ({ label: value, value })) }] },
   { id: 'ospf-interface-delete', title: '删除 OSPFv2 接口配置', section: 'ospf', code: 'OSPF_INTERFACE', action: 'DELETE', data: 'ospfInterface', fields: [name('接口', 'interface')] },
 ];
+for (const action of ['CREATE','SET','DELETE']) {
+ actions.push({
+  id:'ips-rule-'+action.toLowerCase(),title:({CREATE:'创建规则',SET:'修改规则',DELETE:'删除规则'} as Record<string,string>)[action]!,
+  section:'ips',code:'IPS_RULE',action,data:'ipsRule',feature:'snort-ips/v1',identity:['sid'],
+  fields:[num('sid','规则 SID'),...(action==='DELETE'?[]:[{key:'rule',label:'Snort3 规则',type:'rule' as const,required:true,hint:'一条完整规则，sid 必须匹配。示例：drop icmp any any -> any any (msg:"Block ping"; itype:8; sid:1000001; rev:1;)'}])],
+  description:'规则写入当前候选。提交时通过 Snort 校验和重载确认后才记为成功；规则作用于本节点所有 IPS 绑定接口。',
+ });
+ actions.push({
+  id:'ips-interface-'+action.toLowerCase(),title:({CREATE:'绑定检查接口',SET:'修改检查方向',DELETE:'解除接口绑定'} as Record<string,string>)[action]!,
+  section:'ips',code:'IPS_INTERFACE',action,data:'ipsInterface',feature:'snort-ips/v1',identity:['name'],
+  fields:[{...name('VPP 原生接口名'),hint:'如 tap0、GigabitEthernet3b/0/0。请使用运行查询中的 VPP 接口名。'},...(action==='DELETE'?[]:[{key:'direction',label:'检查方向',type:'select' as const,required:true,default:'input',options:[{label:'入方向',value:'input'},{label:'出方向',value:'output'},{label:'双向',value:'inout'}]}])],
+ });
+}
 export const resourceActions = actions;
 actions.push({id:'neighbor-keepalive-set',title:'邻居保活（节点开关）',section:'bridge',feature:'neighbor-keepalive/v1',code:'NEIGHBOR_KEEPALIVE',action:'SET',data:'neighborKeepalive',fields:[{...bool('enabled','邻居保活'),required:true,default:false}],description:'仅 VPP 数据面支持。对本节点接入 BD 的动态 IPv4 / IPv6 邻居发送单播探测；收到有效应答才续期，连续三次无应答撤销对应 MAC/IP 通告。默认关闭；加入候选并提交后生效。'});
 // These protocol operations use the same candidate and dependency planner as
@@ -144,11 +158,13 @@ export function supports(node: Node | undefined, code: string): boolean {
   return !!node?.capabilities?.operations.some(cap => cap.code === code && cap.rollback);
 }
 export function objectName(operation: Operation): string {
+  if (operation.code === 'IPS_RULE') return 'SID ' + String(operationData(operation).sid);
   if (operation.code === 'NEIGHBOR_KEEPALIVE') return '节点邻居保活';
   const data = operationData(operation);
   return String(data.name ?? data.bridge ?? data.tenant ?? data.interface ?? data.vrf ?? data.prefix ?? data.vni ?? data.asn ?? operation.id ?? operation.code);
 }
 export function resourceSection(operation: Operation): ResourceSection | undefined {
+  if (operation.code.startsWith('IPS_')) return 'ips';
   if (['TENANT','TENANT_L3VNI','BD_TENANT'].includes(operation.code)) return 'tenant';
   if (['BD','BD_PORT','BD_SUPPRESSION','NEIGHBOR_KEEPALIVE'].includes(operation.code)) return 'bridge';
   if (operation.code === 'VXLAN') return 'vxlan';
@@ -186,6 +202,7 @@ export function resourceTree(objects: Operation[]): ResourceTree[] {
 }
 
 export const queryKinds: {kind:string;label:string;section:ResourceSection}[] = [
+ {kind:'IPS_STATUS',label:'IPS 服务与重载状态',section:'ips'}, {kind:'IPS_RULES',label:'实际生效规则',section:'ips'},
   {kind:'NEIGHBOR_KEEPALIVE_STATUS',label:'邻居保活状态（VPP）',section:'bridge'},
   {kind:'TENANTS',label:'VRF / 路由表',section:'tenant'}, {kind:'BRIDGES',label:'BD',section:'bridge'},
   {kind:'PORTS',label:'BD 成员端口',section:'bridge'}, {kind:'FDB',label:'MAC / FDB',section:'bridge'}, {kind:'NEIGHBORS',label:'ARP / ND 邻居',section:'bridge'},

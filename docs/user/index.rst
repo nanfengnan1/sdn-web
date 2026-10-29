@@ -57,5 +57,6 @@
    nodes-access
    configuration
    resources
+   ips
    jobs-topology
    troubleshooting

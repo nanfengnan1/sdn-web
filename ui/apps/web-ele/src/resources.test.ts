@@ -53,3 +53,17 @@ describe('tenant relation tree',()=>{
   const tree=resourceTree(ops);expect(tree[0]?.children).toEqual([]);expect(tree[1]?.label).toContain('50000');expect(tree[1]?.children?.[0]?.children?.[0]?.children?.[0]?.label).toBe('2001:db8::1/64');expect(tree[2]?.children?.map(c=>c.id)).toEqual(['bd/orphan','vx/vx100']);
  });
 });
+
+describe('Snort IPS resources',()=>{
+ it('only exposes IPS operations on capable nodes',()=>{
+  expect(resourceActionsForNode(undefined,'ips')).toEqual([]);
+  const node={capabilities:{features:['snort-ips/v1'],operations:[{code:'IPS_RULE',rollback:true}]}} as unknown as Node;
+  expect(resourceActionsForNode(node,'ips').some(a=>a.id==='ips-rule-create')).toBe(true);
+  expect(buildOperation(action('ips-rule-create'),{sid:1000001,rule:'drop icmp any any -> any any (sid:1000001;)'})).toEqual({code:'IPS_RULE',action:'CREATE',ipsRule:{sid:1000001,rule:'drop icmp any any -> any any (sid:1000001;)'}});
+  expect(buildOperation(action('ips-rule-delete'),{sid:1000001})).toEqual({code:'IPS_RULE',action:'DELETE',ipsRule:{sid:1000001}});
+ });
+ it('rejects missing SID and accepts native VPP interface names',()=>{
+  expect(()=>buildOperation(action('ips-rule-delete'),{sid:0})).toThrow();
+  expect(buildOperation(action('ips-interface-create'),{name:'GigabitEthernet3b/0/0',direction:'input'}).ipsInterface).toEqual({name:'GigabitEthernet3b/0/0',direction:'input'});
+ });
+});

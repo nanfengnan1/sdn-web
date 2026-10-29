@@ -43,6 +43,10 @@ CMD ["nginx", "-g", "daemon off;"]
 # Default bundled deployment: independently built UI and Gateway, two processes.
 # The gateway/ui targets above remain available for separate deployment.
 FROM ${ALPINE_IMAGE} AS web
+ARG SOURCE_REVISION=unknown
+LABEL org.opencontainers.image.title="SDN Web" \
+      org.opencontainers.image.source="https://github.com/nanfengnan1/sdn-web" \
+      org.opencontainers.image.revision="${SOURCE_REVISION}"
 RUN apk add --no-cache ca-certificates nginx python3 tini && mkdir -p /usr/share/nginx/html
 COPY --from=gateway-build /out/sdn-web-gateway /usr/local/bin/
 COPY --from=ui-build /src/ui/apps/web-ele/dist /usr/share/nginx/html/

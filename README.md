@@ -102,3 +102,12 @@ export SDN_VIEWER_TOKEN='<与 Controller 一致且不同的只读 token>'
 既有记录报告了真实 Controller/Agent/Linux/FRR 端到端验收：11 个源码阶段、17 项网络/API 检查、10 项浏览器检查。详见 [验收记录](docs/validation.md) 和 [浏览器复现方法](tests/e2e/README.md)。该记录对应旧 `sdnc-it-*` 实验的 `18080` 入口及 `lab/state/tokens.json`，不能直接作为当前源码重新验收的结果。
 
 源码 Alpine 镜像的独立环境使用 `http://<部署服务器IP>:28080`，占位符替换为浏览器可访问的实际服务器地址。凭据在部署主机 Controller 项目的 `docker/state/tokens.json`，使用其中 `admin` 或 `viewer` 登录。见 [Docker 历史验收记录](docs/docker-validation.md) 和 [用户手册](docs/user/index.rst)。不同部署版本与资源工作台的验证范围见[测试与验收](docs/developer/testing.rst)，本次文档构建不代表重跑真实网络验收。验收报告中的具体 IP 属于历史测试证据，实际令牌不写入前端构建或文档。
+
+
+### Snort IPS
+
+支持带 ``snort-ips/v1`` 能力的 Agent：规则按 SID 管理，
+通过候选和事务创建/修改/删除；支持 VPP 三层接口/BVI 的检查方向绑定。
+Web 提供独立 **IPS 配置** 菜单和实际加载状态查询。
+Agent 使用已有 Redis + confd 校验并热重载 Snort3。
+三个项目需同步更新协议后构建，启用方式见 sdn-agent 的 ``docs/user/ips.rst``。

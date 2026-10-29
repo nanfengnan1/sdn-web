@@ -15,6 +15,7 @@ sdn-web 独立构建与部署。业务规则、资源编译、任务持久化和
    :maxdepth: 2
 
    architecture
+   ips
    http-api
    development
    extensions

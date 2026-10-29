@@ -16,3 +16,14 @@ describe('VPP query presentation', () => {
     expect(queryCell(true, 'multipoint')).toBe('是');
   });
 });
+
+describe('IPS external base configuration', () => {
+  it('shows pending file changes and reload failures separately from runtime errors', () => {
+    const row = {state:'DEGRADED', baseConfigPath:'/etc/snort-local/snort.lua',
+      baseConfigPending:true, baseConfigError:'syntax error', autoReload:false, lastError:''};
+    const cols = queryColumns('IPS_STATUS', true, [row]);
+    expect(cols.map(c => c.key)).toEqual(['state','baseConfigPath','baseConfigPending','baseConfigError','autoReload','lastError']);
+    expect(cols.find(c => c.key === 'baseConfigError')?.label).toBe('基础配置错误');
+    expect(queryCell(row.baseConfigPending)).toBe('是');
+  });
+});

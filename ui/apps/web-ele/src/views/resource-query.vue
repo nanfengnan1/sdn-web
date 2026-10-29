@@ -17,7 +17,7 @@ const neighborFilter=computed(()=>['BGP_NEIGHBORS','NEIGHBORS','NEIGHBOR_KEEPALI
 const families=computed(()=>capability.value?.families||[]);
 const versions=computed(()=>capability.value?.ospfVersions||[]);
 const ospf=computed(()=>kind.value.startsWith('OSPF'));
-const vrfFilter=computed(()=>!['TENANTS','EVPN_ROUTES','EVPN_VNI'].includes(kind.value));
+const vrfFilter=computed(()=>!['TENANTS','EVPN_ROUTES','EVPN_VNI','IPS_STATUS','IPS_RULES'].includes(kind.value));
 const bridgeFilter=computed(()=>['BRIDGES','PORTS','FDB','NEIGHBORS','NEIGHBOR_KEEPALIVE_STATUS','VXLAN_TUNNELS'].includes(kind.value));
 const interfaceFilter=computed(()=>['INTERFACES','ADDRESSES','ROUTES','PORTS','FDB','NEIGHBORS','NEIGHBOR_KEEPALIVE_STATUS','VXLAN_TUNNELS','OSPF_INTERFACES'].includes(kind.value));
 function reset(){active.abort();generation++;busy.value=false;result.value=undefined;error.value='';}
